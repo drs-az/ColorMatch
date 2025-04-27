@@ -1,1 +1,230 @@
-
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Color Match</title>
+  <link rel="icon" href="placeholder-icon.png">
+  <!-- Retro pixel font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: 'Press Start 2P', monospace;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 0%, #001020, #000);
+      color: #0ff;
+    }
+    h1 {
+      font-size: 24px;
+      margin: 10px 0;
+      color: #0ff;
+      text-shadow: 2px 2px #00f, -2px -2px #0ff;
+    }
+    #controls {
+      margin: 20px 0;
+    }
+    #gameWrapper {
+      background: #000;
+      padding: 16px;
+      border: 8px solid #444;
+      border-radius: 8px;
+      box-shadow: 0 0 20px #0ff, inset 0 0 10px #000;
+    }
+    #game {
+      display: grid;
+      gap: 2px;
+    }
+    .card {
+      width: 32px;
+      height: 32px;
+      background-color: #222;
+      cursor: pointer;
+      border: 2px solid #555;
+      box-shadow: inset 0 0 4px #000;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+    .card.flipped {
+      border-color: #0ff;
+    }
+    .card.matched {
+      border-color: #0f0;
+      box-shadow: inset 0 0 8px #0f0;
+    }
+    #status {
+      margin-top: 15px;
+      font-size: 12px;
+      text-shadow: 1px 1px #000;
+    }
+    button {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 12px;
+      background: #000;
+      color: #0ff;
+      border: 2px solid #0ff;
+      padding: 8px 12px;
+      margin: 0 5px;
+      cursor: pointer;
+      transition: background-color 0.2s, color 0.2s;
+    }
+    button:hover {
+      background-color: #0ff;
+      color: #000;
+    }
+    /* Modal styling */
+    #sizeModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #sizeModal .modal-content {
+      background: #111;
+      border: 4px solid #0ff;
+      padding: 20px 30px;
+      border-radius: 8px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    }
+    #sizeModal h2 {
+      margin-bottom: 15px;
+      font-size: 14px;
+      color: #0ff;
+      text-shadow: 1px 1px #000;
+    }
+  </style>
+  <!-- Inline Web App Manifest -->
+  <script>
+    (function() {
+      const manifest = {
+        "name": "Color Match",
+        "short_name": "Color Match",
+        "start_url": ".",
+        "display": "standalone",
+        "background_color": "#000",
+        "theme_color": "#0ff",
+        "icons": [
+          { "src": "file_00000000cefc6230a5832d70fe025138.png", "sizes": "192x192", "type": "image/png" },
+          { "src": "file_00000000cefc6230a5832d70fe025138.png", "sizes": "512x512", "type": "image/png" }
+        ]
+      };
+      const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = url;
+      document.head.appendChild(link);
+    })();
+  </script>
+  <!-- Inline Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        self.addEventListener('install', event => { self.skipWaiting(); });
+        self.addEventListener('activate', event => { event.waitUntil(self.clients.claim()); });
+        self.addEventListener('fetch', event => {});
+      `;
+      const blob = new Blob([swCode], { type: 'text/javascript' });
+      const swURL = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swURL)
+        .then(reg => console.log('Service Worker registered:', reg))
+        .catch(err => console.error('SW registration failed:', err));
+    }
+  </script>
+</head>
+<body>
+  <h1>COLOR MATCH</h1>
+  <!-- Size selection modal -->
+  <div id="sizeModal">
+    <div class="modal-content">
+      <h2>SELECT BOARD SIZE</h2>
+      <button data-size="4">4×4</button>
+      <button data-size="8">8×8</button>
+      <button data-size="12">12×12</button>
+      <button data-size="16">16×16</button>
+    </div>
+  </div>
+  <div id="controls">
+    <button id="restartBtn">RESTART</button>
+  </div>
+  <div id="gameWrapper">
+    <div id="game"></div>
+  </div>
+  <div id="status">MATCHES: 0</div>
+  <script>
+    const game = document.getElementById('game');
+    const status = document.getElementById('status');
+    const restartBtn = document.getElementById('restartBtn');
+    const sizeModal = document.getElementById('sizeModal');
+    const sizeButtons = sizeModal.querySelectorAll('button');
+    let size, total, pairs, deck;
+    let first, second, lock, matches;
+    function showModal() { sizeModal.style.display = 'flex'; }
+    function hideModal() { sizeModal.style.display = 'none'; }
+    sizeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        size = parseInt(btn.dataset.size, 10);
+        hideModal();
+        initGame();
+      });
+    });
+    function initGame() {
+      game.innerHTML = '';
+      first = second = null;
+      lock = false;
+      matches = 0;
+      total = size * size;
+      pairs = total / 2;
+      status.textContent = `MATCHES: 0 / ${pairs}`;
+      const colors = [];
+      for (let i = 0; i < pairs; i++) {
+        const hue = Math.round(i * 360 / pairs);
+        colors.push(`hsl(${hue}, 70%, 60%)`);
+      }
+      deck = [...colors, ...colors];
+      deck.sort(() => Math.random() - 0.5);
+      game.style.gridTemplateColumns = `repeat(${size}, 32px)`;
+      game.style.gridTemplateRows = `repeat(${size}, 32px)`;
+      deck.forEach(color => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.dataset.color = color;
+        card.addEventListener('click', () => flipCard(card));
+        game.appendChild(card);
+      });
+    }
+    function flipCard(card) {
+      if (lock || card === first || card.classList.contains('matched')) return;
+      card.classList.add('flipped');
+      card.style.backgroundColor = card.dataset.color;
+      if (!first) first = card;
+      else { second = card; checkMatch(); }
+    }
+    function checkMatch() {
+      lock = true;
+      if (first.dataset.color === second.dataset.color) {
+        first.classList.add('matched'); second.classList.add('matched'); matches++; updateStatus(); resetTurn();
+      } else {
+        setTimeout(() => { first.classList.remove('flipped'); second.classList.remove('flipped'); first.style.backgroundColor = '#222'; second.style.backgroundColor = '#222'; resetTurn(); }, 800);
+      }
+    }
+    function resetTurn() { first = second = null; lock = false; }
+    function updateStatus() {
+      status.textContent = `MATCHES: ${matches} / ${pairs}`;
+      if (matches === pairs) status.textContent = 'CONGRATULATIONS! ALL MATCHED.';
+    }
+    restartBtn.addEventListener('click', showModal);
+    window.addEventListener('load', showModal);
+  </script>
+</body>
+</html>
