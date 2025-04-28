@@ -93,7 +93,8 @@
     <div id="game"></div>
   </div>  <div id="status">MATCHES: 0</div>
   <div id="guesses">GUESSES: 0</div>
-  <div id="timer">TIME: 00:00</div>  <script>
+  <div id="timer">TIME: 00:00</div>
+  <button id="shareBtn" style="display:none; margin-top:10px;">SHARE</button>  <script>
     // Service Worker registration
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
@@ -107,7 +108,18 @@
     const restartBtn = document.getElementById('restartBtn');
     const sizeModal = document.getElementById('sizeModal');
     const sizeButtons = sizeModal.querySelectorAll('button');
-    let size, pairs, deck, first, second, lock, matches, guesses, startTime, timerInterval;
+    const shareBtn = document.getElementById('shareBtn');
+    let size, pairs, deck, first, second, lock, matches, guesses, startTime, timerInterval, finalTime;
+
+    shareBtn.addEventListener('click', () => {
+      const shareText = `I matched a ${size}×${size} Color Match puzzle in ${finalTime} using ${guesses} guesses. Play Color Match at https://drs-az.github.io/ColorMatch/index.html and add Color Match as an app to your home screen.`;
+      if (navigator.share) {
+        navigator.share({ text: shareText, url: 'https://drs-az.github.io/ColorMatch/index.html' })
+          .catch(err => console.error('Share failed:', err));
+      } else {
+        prompt('Share this text:', shareText);
+      }
+    });
 
     function showModal() { sizeModal.style.display = 'flex'; }
     function hideModal() { sizeModal.style.display = 'none'; }
@@ -123,9 +135,8 @@
     function initGame() {
       game.innerHTML = '';
       [first, second] = [null, null];
-      lock = false;
-      matches = 0;
-      guesses = 0;
+      lock = false; matches = 0; guesses = 0;
+      finalTime = '';
       pairs = (size * size) / 2;
       startTime = Date.now();
       clearInterval(timerInterval);
@@ -134,6 +145,7 @@
       status.textContent = `MATCHES: 0 / ${pairs}`;
       updateGuesses();
       updateTimer();
+      shareBtn.style.display = 'none';
 
       const colors = Array.from({ length: pairs }, (_, i) =>
         `hsl(${(i * 360 / pairs) | 0},70%,60%)`
@@ -192,7 +204,10 @@
         const totalSeconds = Math.floor(elapsed / 1000);
         const mins = Math.floor(totalSeconds / 60);
         const secs = totalSeconds % 60;
-        status.textContent = `🎉 CONGRATULATIONS! All matched in ${guesses} guesses and ${mins}:${secs.toString().padStart(2,'0')} 🎉`;
+        const timeStr = `${mins}:${secs.toString().padStart(2,'0')}`;
+        finalTime = timeStr;
+        status.textContent = `🎉 CONGRATULATIONS! All matched in ${guesses} guesses and ${timeStr} 🎉`;
+        shareBtn.style.display = 'inline-block';
       } else {
         status.textContent = `MATCHES: ${matches} / ${pairs}`;
       }
