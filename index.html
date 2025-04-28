@@ -15,6 +15,11 @@
       background: radial-gradient(circle at 50% 0%, #001020, #000);
       color: #0ff;
     }
+    #shareArea {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
     h1 {
       font-size: 24px;
       margin: 10px 0;
@@ -79,22 +84,20 @@
     }
   </style></head>
 <body>
-  <h1>COLOR MATCH</h1>  <!-- Size selection modal -->  <div id="sizeModal">
-    <div class="modal-content">
-      <h2>SELECT BOARD SIZE</h2>
-      <button data-size="4">4×4</button>
-      <button data-size="6">6×6</button>
-      <button data-size="8">8×8</button>
-      <button data-size="10">10×10</button>
+  <div id="shareArea">
+    <h1>COLOR MATCH</h1>
+    <div id="controls">
+      <button id="restartBtn">RESTART</button>
     </div>
-  </div>  <div id="controls">
-    <button id="restartBtn">RESTART</button>
-  </div>  <div id="gameWrapper">
-    <div id="game"></div>
-  </div>  <div id="status">MATCHES: 0</div>
-  <div id="guesses">GUESSES: 0</div>
-  <div id="timer">TIME: 00:00</div>
-  <button id="shareBtn" style="display:none; margin-top:10px;">SHARE</button>  <script>
+    <div id="gameWrapper">
+      <div id="game"></div>
+    </div>
+    <div id="status">MATCHES: 0</div>
+    <div id="guesses">GUESSES: 0</div>
+    <div id="timer">TIME: 00:00</div>
+  </div><button id="shareBtn" style="display:none; margin-top:10px;">SHARE</button>
+
+  <script>
     // Service Worker registration
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
@@ -107,20 +110,20 @@
     const status = document.getElementById('status');
     const restartBtn = document.getElementById('restartBtn');
     const sizeModal = document.getElementById('sizeModal');
-    const sizeButtons = sizeModal.querySelectorAll('button');
+    const sizeButtons = document.querySelectorAll('#sizeModal button');
     const shareBtn = document.getElementById('shareBtn');
     let size, pairs, deck, first, second, lock, matches, guesses, startTime, timerInterval, finalTime;
 
     shareBtn.addEventListener('click', async () => {
-      // Capture screenshot
-      const canvas = await html2canvas(document.getElementById('gameWrapper'));
+      // Capture a larger screenshot at double resolution
+      const element = document.getElementById('shareArea');
+      const canvas = await html2canvas(element, { scale: 2 });
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-      finalTime = finalTime || timer.textContent.replace('TIME: ', '');
+      finalTime = finalTime || document.getElementById('timer').textContent.replace('TIME: ', '');
       const shareText = `I matched a ${size}×${size} Color Match puzzle in ${finalTime} using ${guesses} guesses.`;
       const shareUrl = 'https://drs-az.github.io/ColorMatch/index.html';
       const file = new File([blob], 'color-match.png', { type: 'image/png' });
 
-      // Use Web Share API with file if available
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file], text: shareText, url: shareUrl });
@@ -128,62 +131,54 @@
           console.error('Share failed', err);
         }
       } else {
-        // Fallback: copy image to clipboard (if supported) and open Facebook share dialog
+        // Fallback: copy image to clipboard or download
         try {
           await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-          alert('Screenshot copied to clipboard! Paste it into your Facebook post.');
+          alert('Screenshot copied to clipboard! Paste it into your post.');
         } catch (e) {
           console.warn('Clipboard write not supported', e);
-          // Optionally offer download
           const link = document.createElement('a');
           link.download = 'color-match.png';
           link.href = URL.createObjectURL(blob);
           link.textContent = 'Download screenshot';
           document.body.appendChild(link);
         }
+        // Open FB dialog with quote only
         const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
         window.open(fbUrl, '_blank');
       }
     });
 
-    function showModal() { sizeModal.style.display = 'flex'; }
-    function hideModal() { sizeModal.style.display = 'none'; }
+    function showModal() { document.getElementById('sizeModal').style.display = 'flex'; }
+    function hideModal() { document.getElementById('sizeModal').style.display = 'none'; }
 
-    sizeButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        size = +btn.dataset.size;
-        hideModal();
-        initGame();
-      });
-    });
+    sizeButtons.forEach(btn => btn.addEventListener('click', () => {
+      size = +btn.dataset.size;
+      hideModal(); initGame();
+    }));
 
     function initGame() {
       game.innerHTML = '';
-      [first, second] = [null, null];
-      lock = false; matches = 0; guesses = 0;
-      finalTime = '';
-      pairs = (size * size) / 2;
-      startTime = Date.now();
-      clearInterval(timerInterval);
+      [first, second] = [null, null]; lock = false; matches = 0; guesses = 0; finalTime = '';
+      pairs = (size * size) / 2; startTime = Date.now(); clearInterval(timerInterval);
       timerInterval = setInterval(updateTimer, 1000);
 
       status.textContent = `MATCHES: 0 / ${pairs}`;
-      updateGuesses();
-      updateTimer();
-      shareBtn.style.display = 'none';
+      document.getElementById('guesses').textContent = `GUESSES: 0`;
+      updateTimer(); shareBtn.style.display = 'none';
 
       const colors = Array.from({ length: pairs }, (_, i) =>
         `hsl(${(i * 360 / pairs) | 0},70%,60%)`
       );
       deck = [...colors, ...colors].sort(() => Math.random() - .5);
 
-      game.style.gridTemplateColumns = `repeat(${size},32px)`;
-      game.style.gridTemplateRows    = `repeat(${size},32px)`;
+      const wrapper = document.getElementById('gameWrapper');
+      wrapper.style.gridTemplateColumns = `repeat(${size},32px)`;
+      wrapper.style.gridTemplateRows    = `repeat(${size},32px)`;
 
       deck.forEach(color => {
         const card = document.createElement('div');
-        card.className = 'card';
-        card.dataset.color = color;
+        card.className = 'card'; card.dataset.color = color;
         card.addEventListener('click', () => flipCard(card));
         game.appendChild(card);
       });
@@ -191,34 +186,21 @@
 
     function flipCard(card) {
       if (lock || card === first || card.classList.contains('matched')) return;
-      card.classList.add('flipped');
-      card.style.backgroundColor = card.dataset.color;
-      if (!first) {
-        first = card;
-      } else {
-        second = card;
-        guesses++;
-        updateGuesses();
-        checkMatch();
-      }
+      card.classList.add('flipped'); card.style.backgroundColor = card.dataset.color;
+      if (!first) first = card;
+      else { second = card; guesses++; document.getElementById('guesses').textContent = `GUESSES: ${guesses}`; checkMatch(); }
     }
 
     function checkMatch() {
       lock = true;
       if (first.dataset.color === second.dataset.color) {
-        first.classList.add('matched');
-        second.classList.add('matched');
-        matches++;
+        first.classList.add('matched'); second.classList.add('matched'); matches++;
       }
       setTimeout(() => {
         if (first.dataset.color !== second.dataset.color) {
-          [first, second].forEach(c => {
-            c.classList.remove('flipped');
-            c.style.backgroundColor = '#222';
-          });
+          [first, second].forEach(c => { c.classList.remove('flipped'); c.style.backgroundColor = '#222'; });
         }
-        updateStatus();
-        [first, second, lock] = [null, null, false];
+        updateStatus(); [first, second, lock] = [null, null, false];
       }, 600);
     }
 
@@ -226,31 +208,33 @@
       if (matches === pairs) {
         clearInterval(timerInterval);
         const elapsed = Date.now() - startTime;
-        const totalSeconds = Math.floor(elapsed / 1000);
-        const mins = Math.floor(totalSeconds / 60);
-        const secs = totalSeconds % 60;
-        const timeStr = `${mins}:${secs.toString().padStart(2,'0')}`;
-        finalTime = timeStr;
-        status.textContent = `🎉 CONGRATULATIONS! All matched in ${guesses} guesses and ${timeStr} 🎉`;
+        const total = Math.floor(elapsed / 1000);
+        const m = Math.floor(total/60), s = total%60;
+        finalTime = `${m}:${s.toString().padStart(2,'0')}`;
+        status.textContent = `🎉 CONGRATULATIONS! All matched in ${guesses} guesses and ${finalTime} 🎉`;
         shareBtn.style.display = 'inline-block';
       } else {
         status.textContent = `MATCHES: ${matches} / ${pairs}`;
       }
     }
 
-    function updateGuesses() {
-      document.getElementById('guesses').textContent = `GUESSES: ${guesses}`;
-    }
-
     function updateTimer() {
       const elapsed = Date.now() - startTime;
-      const totalSeconds = Math.floor(elapsed / 1000);
-      const mins = Math.floor(totalSeconds / 60);
-      const secs = totalSeconds % 60;
-      document.getElementById('timer').textContent = `TIME: ${mins}:${secs.toString().padStart(2,'0')}`;
+      const total = Math.floor(elapsed / 1000);
+      const m = Math.floor(total/60), s = total%60;
+      document.getElementById('timer').textContent = `TIME: ${m}:${s.toString().padStart(2,'0')}`;
     }
 
-    restartBtn.addEventListener('click', showModal);
+    document.getElementById('restartBtn').addEventListener('click', showModal);
     window.addEventListener('load', showModal);
-  </script></body>
+  </script>  <!-- Size selection modal -->  <div id="sizeModal">
+    <div class="modal-content">
+      <h2>SELECT BOARD SIZE</h2>
+      <button data-size="4">4×4</button>
+      <button data-size="6">6×6</button>
+      <button data-size="8">8×8</button>
+      <button data-size="10">10×10</button>
+    </div>
+  </div>
+</body>
 </html>
