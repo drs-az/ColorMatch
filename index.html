@@ -4,7 +4,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Color Match</title>
   <link rel="icon" href="icon-192.png">  <!-- Retro pixel font -->  <link rel="preconnect" href="https://fonts.gstatic.com">
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">  <!-- PWA manifest -->  <link rel="manifest" href="manifest.webmanifest">  <style>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">  <!-- PWA manifest -->  <link rel="manifest" href="manifest.webmanifest">  <!-- html2canvas for screenshot capture -->  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>  <style>
     body {
       display: flex;
       flex-direction: column;
@@ -111,14 +111,36 @@
     const shareBtn = document.getElementById('shareBtn');
     let size, pairs, deck, first, second, lock, matches, guesses, startTime, timerInterval, finalTime;
 
-    shareBtn.addEventListener('click', () => {
+    shareBtn.addEventListener('click', async () => {
+      // Capture screenshot
+      const canvas = await html2canvas(document.getElementById('gameWrapper'));
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      finalTime = finalTime || timer.textContent.replace('TIME: ', '');
       const shareText = `I matched a ${size}×${size} Color Match puzzle in ${finalTime} using ${guesses} guesses.`;
       const shareUrl = 'https://drs-az.github.io/ColorMatch/index.html';
-      if (navigator.share) {
-        navigator.share({ text: shareText, url: shareUrl })
-          .catch(err => console.error('Share failed:', err));
+      const file = new File([blob], 'color-match.png', { type: 'image/png' });
+
+      // Use Web Share API with file if available
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], text: shareText, url: shareUrl });
+        } catch (err) {
+          console.error('Share failed', err);
+        }
       } else {
-        // Fallback: open Facebook share dialog
+        // Fallback: copy image to clipboard (if supported) and open Facebook share dialog
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          alert('Screenshot copied to clipboard! Paste it into your Facebook post.');
+        } catch (e) {
+          console.warn('Clipboard write not supported', e);
+          // Optionally offer download
+          const link = document.createElement('a');
+          link.download = 'color-match.png';
+          link.href = URL.createObjectURL(blob);
+          link.textContent = 'Download screenshot';
+          document.body.appendChild(link);
+        }
         const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
         window.open(fbUrl, '_blank');
       }
