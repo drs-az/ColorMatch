@@ -19,6 +19,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      background: #000; /* ensure black background in screenshot */
+      padding: 20px;
     }
     h1 {
       font-size: 24px;
@@ -60,7 +62,6 @@
       background: #0ff; color: #000;
     }
 
-    /* Modal */
     #sizeModal {
       position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
@@ -105,7 +106,8 @@
       <button data-size="8">8×8</button>
       <button data-size="10">10×10</button>
     </div>
-  </div>  <!-- Main Script: placed after modal markup so buttons exist on load -->  <script>
+  </div>  <!-- Main Script -->  <script>
+    // Elements
     const game = document.getElementById('game');
     const status = document.getElementById('status');
     const restartBtn = document.getElementById('restartBtn');
@@ -113,14 +115,9 @@
     const sizeButtons = document.querySelectorAll('#sizeModal button');
     let size, pairs, deck, first, second, lock, matches, guesses, startTime, timerInterval, finalTime;
 
-    // Show the modal
-    function showModal() {
-      document.getElementById('sizeModal').style.display = 'flex';
-    }
-    // Hide the modal
-    function hideModal() {
-      document.getElementById('sizeModal').style.display = 'none';
-    }
+    // Show/hide modal
+    function showModal() { document.getElementById('sizeModal').style.display = 'flex'; }
+    function hideModal() { document.getElementById('sizeModal').style.display = 'none'; }
 
     // Bind size selection
     sizeButtons.forEach(btn => btn.addEventListener('click', () => {
@@ -129,15 +126,12 @@
       initGame();
     }));
 
-    // Initialize or restart the game
+    // Init game
     function initGame() {
       game.innerHTML = '';
       [first, second] = [null, null];
-      lock = false;
-      matches = 0;
-      guesses = 0;
-      finalTime = '';
-      pairs = (size * size) / 2;
+      lock = false; matches = 0; guesses = 0; finalTime = '';
+      pairs = (size * size)/2;
       startTime = Date.now();
       clearInterval(timerInterval);
       timerInterval = setInterval(updateTimer, 1000);
@@ -147,118 +141,81 @@
       updateTimer();
       shareBtn.style.display = 'none';
 
-      // Create and shuffle deck
-      const colors = Array.from({ length: pairs }, (_, i) =>
-        `hsl(${(i * 360 / pairs) | 0},70%,60%)`
+      const colors = Array.from({length:pairs}, (_,i) =>
+        `hsl(${(i*360/pairs)|0},70%,60%)`
       );
-      deck = [...colors, ...colors].sort(() => Math.random() - 0.5);
+      deck = [...colors, ...colors].sort(() => Math.random()-0.5);
 
-      // Configure grid on game element
       game.style.gridTemplateColumns = `repeat(${size},32px)`;
       game.style.gridTemplateRows    = `repeat(${size},32px)`;
 
-      // Build cards
       deck.forEach(color => {
         const card = document.createElement('div');
-        card.className = 'card';
-        card.dataset.color = color;
-        card.addEventListener('click', () => flipCard(card));
+        card.className='card'; card.dataset.color=color;
+        card.addEventListener('click',() => flipCard(card));
         game.appendChild(card);
       });
     }
 
-    // Flip logic and guess counting
+    // Flip logic
     function flipCard(card) {
-      if (lock || card === first || card.classList.contains('matched')) return;
-      card.classList.add('flipped');
-      card.style.backgroundColor = card.dataset.color;
-      if (!first) {
-        first = card;
-      } else {
-        second = card;
-        guesses++;
-        document.getElementById('guesses').textContent = `GUESSES: ${guesses}`;
-        checkMatch();
-      }
+      if(lock||card===first||card.classList.contains('matched'))return;
+      card.classList.add('flipped'); card.style.backgroundColor=card.dataset.color;
+      if(!first) first=card;
+      else { second=card; guesses++; document.getElementById('guesses').textContent=`GUESSES: ${guesses}`; checkMatch(); }
     }
 
-    // Match check and end-game
+    // Check match
     function checkMatch() {
-      lock = true;
-      if (first.dataset.color === second.dataset.color) {
-        first.classList.add('matched');
-        second.classList.add('matched');
-        matches++;
-      }
-      setTimeout(() => {
-        if (first.dataset.color !== second.dataset.color) {
-          [first, second].forEach(c => {
-            c.classList.remove('flipped');
-            c.style.backgroundColor = '#222';
-          });
-        }
-        updateStatus();
-        [first, second, lock] = [null, null, false];
-      }, 600);
+      lock=true;
+      if(first.dataset.color===second.dataset.color) { first.classList.add('matched'); second.classList.add('matched'); matches++; }
+      setTimeout(()=>{
+        if(first.dataset.color!==second.dataset.color) [first,second].forEach(c=>{c.classList.remove('flipped');c.style.backgroundColor='#222';});
+        updateStatus(); [first,second,lock]=[null,null,false];
+      },600);
     }
 
-    // Update status and show share when done
+    // Update status
     function updateStatus() {
-      if (matches === pairs) {
+      if(matches===pairs) {
         clearInterval(timerInterval);
-        const elapsed = Date.now() - startTime;
-        const total = Math.floor(elapsed / 1000);
-        const m = Math.floor(total / 60);
-        const s = total % 60;
-        finalTime = `${m}:${s.toString().padStart(2,'0')}`;
-        status.textContent = `🎉 CONGRATULATIONS! All matched in ${guesses} guesses and ${finalTime} 🎉`;
-        shareBtn.style.display = 'inline-block';
-      } else {
-        status.textContent = `MATCHES: ${matches} / ${pairs}`;
-      }
+        const elapsed=Date.now()-startTime;
+        const total=Math.floor(elapsed/1000);
+        const m=Math.floor(total/60), s=total%60;
+        finalTime=`${m}:${s.toString().padStart(2,'0')}`;
+        status.textContent=`🎉 CONGRATULATIONS! All matched in ${guesses} guesses and ${finalTime} 🎉`;
+        shareBtn.style.display='inline-block';
+      } else status.textContent=`MATCHES: ${matches} / ${pairs}`;
     }
 
-    // Timer display
+    // Timer
     function updateTimer() {
-      const elapsed = Date.now() - startTime;
-      const total = Math.floor(elapsed / 1000);
-      const m = Math.floor(total / 60);
-      const s = total % 60;
-      document.getElementById('timer').textContent = `TIME: ${m}:${s.toString().padStart(2,'0')}`;
+      const elapsed=Date.now()-startTime;
+      const total=Math.floor(elapsed/1000);
+      const m=Math.floor(total/60), s=total%60;
+      document.getElementById('timer').textContent=`TIME: ${m}:${s.toString().padStart(2,'0')}`;
     }
 
-    // Share button captures a high-res screenshot
-    shareBtn.addEventListener('click', async () => {
-      const element = document.getElementById('shareArea');
-      const canvas = await html2canvas(element, { scale: 2 });
-      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-      const shareText = `I matched a ${size}×${size} Color Match puzzle in ${finalTime} using ${guesses} guesses.`;
-      const shareUrl = 'https://drs-az.github.io/ColorMatch/index.html';
-      const file = new File([blob], 'color-match.png', { type: 'image/png' });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], text: shareText, url: shareUrl })
-          .catch(err => console.error('Share failed', err));
+    // Share
+    shareBtn.addEventListener('click', async()=>{
+      const element=document.getElementById('shareArea');
+      const canvas=await html2canvas(element,{scale:2,backgroundColor:'#000'});
+      const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+      const shareText=`I matched a ${size}×${size} Color Match puzzle in ${finalTime} using ${guesses} guesses.`;
+      const shareUrl='https://drs-az.github.io/ColorMatch/index.html';
+      const file=new File([blob],'color-match.png',{type:'image/png'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        navigator.share({files:[file],text:shareText,url:shareUrl}).catch(e=>console.error('Share failed',e));
       } else {
-        try {
-          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-          alert('Screenshot copied! Paste it in your post.');
-        } catch {
-          const link = document.createElement('a');
-          link.download = 'color-match.png';
-          link.href = URL.createObjectURL(blob);
-          link.textContent = 'Download screenshot';
-          document.body.appendChild(link);
-        }
-        const fb = `https://www.facebook.com/sharer/sharer.php?` +
-                   `u=${encodeURIComponent(shareUrl)}` +
-                   `&quote=${encodeURIComponent(shareText)}`;
-        window.open(fb, '_blank');
+        try { await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]); alert('Screenshot copied! Paste it in your post.'); }
+        catch{ const link=document.createElement('a');link.download='color-match.png';link.href=URL.createObjectURL(blob);link.textContent='Download screenshot';document.body.appendChild(link);}        
+        const fb=`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
+        window.open(fb,'_blank');
       }
     });
 
-    // Start on load
-    restartBtn.addEventListener('click', showModal);
-    window.addEventListener('load', showModal);
+    // Start
+    restartBtn.addEventListener('click',showModal);
+    window.addEventListener('load',showModal);
   </script></body>
 </html>
