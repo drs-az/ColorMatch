@@ -112,12 +112,15 @@
     let size, pairs, deck, first, second, lock, matches, guesses, startTime, timerInterval, finalTime;
 
     shareBtn.addEventListener('click', () => {
-      const shareText = `I matched a ${size}×${size} Color Match puzzle in ${finalTime} using ${guesses} guesses. Play Color Match at https://drs-az.github.io/ColorMatch/index.html and add Color Match as an app to your home screen.`;
+      const shareText = `I matched a ${size}×${size} Color Match puzzle in ${finalTime} using ${guesses} guesses.`;
+      const shareUrl = 'https://drs-az.github.io/ColorMatch/index.html';
       if (navigator.share) {
-        navigator.share({ text: shareText, url: 'https://drs-az.github.io/ColorMatch/index.html' })
+        navigator.share({ text: shareText, url: shareUrl })
           .catch(err => console.error('Share failed:', err));
       } else {
-        prompt('Share this text:', shareText);
+        // Fallback: open Facebook share dialog
+        const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
+        window.open(fbUrl, '_blank');
       }
     });
 
