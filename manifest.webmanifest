@@ -1,0 +1,20 @@
+{
+  "name": "Color Match",
+  "short_name": "ColorMatch",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#00ffff",
+  "icons": [
+    {
+      "src": "file_00000000cefc6230a5832d70fe025138.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "file_00000000cefc6230a5832d70fe025138.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
